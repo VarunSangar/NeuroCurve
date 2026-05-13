@@ -6,8 +6,8 @@
 <title>NeuroCurve — Cognitive Performance Analytics</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href__="https://fonts.googleapis.com">
+<link href__="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #030712;
@@ -1426,40 +1426,57 @@ function setupAttention(el) {
   `;
 
   iv = setInterval(() => {
+    // Track miss: if last stimulus was a target and user didn't respond (hits didn't increase)
+    if (targetPresent) {
+      misses++;
+      const st = document.getElementById('att-stats');
+      if (st) st.textContent = `Hits: ${hits} · Misses: ${misses} · False Alarms: ${falseAlarms}`;
+    }
+
     targetPresent = Math.random() < 0.2;
     const letter = targetPresent ? 'X' : 'ABCDEFGHIJKLMNOPQRSTUVWYZ'[Math.floor(Math.random()*25)];
     const s = document.getElementById('att-stream');
-    if(!s){clearInterval(iv);return;}
-    s.textContent=letter; s.className=`attention-stream${targetPresent?' target':''}`;
-    setTimeout(()=>{if(s){s.textContent='·';s.className='attention-stream';}},400);
+    if (!s) { clearInterval(iv); return; }
+    s.textContent = letter;
+    s.className = `attention-stream${targetPresent ? ' target' : ''}`;
+    setTimeout(() => { if (s) { s.textContent='·'; s.className='attention-stream'; } }, 400);
+
     timeLeft--;
-    const t=document.getElementById('att-timer');
-    if(t) t.textContent=`${timeLeft}s remaining`;
-    if(timeLeft<=0){
+    const t = document.getElementById('att-timer');
+    if (t) t.textContent = `${timeLeft}s remaining`;
+
+    if (timeLeft <= 0) {
       clearInterval(iv);
-      document.removeEventListener('keydown',onSpace);
-      const dprime=hits/(hits+misses+1);
+      document.removeEventListener('keydown', onSpace);
+      const dprime = hits / (hits + misses + 1);
       state.attentionHits.push(dprime);
-      logEvent('ATTENTION',`Hits=${hits} · Misses=${misses} · FA=${falseAlarms} · d'≈${dprime.toFixed(2)}`);
+      logEvent('ATTENTION', `Hits=${hits} · Misses=${misses} · FA=${falseAlarms} · d'≈${dprime.toFixed(2)}`);
       document.getElementById('task-btn-attention').classList.add('completed');
-      if(s)s.textContent='DONE';
+      if (s) s.textContent = 'DONE';
       computeMetrics();
     }
   }, 1000);
 
   function onSpace(e) {
-    if(e.code!=='Space') return; e.preventDefault();
-    if(!document.getElementById('att-stream')){document.removeEventListener('keydown',onSpace);return;}
-    targetPresent ? hits++ : falseAlarms++;
-    const st=document.getElementById('att-stats');
-    if(st) st.textContent=`Hits: ${hits} · Misses: ${misses} · False Alarms: ${falseAlarms}`;
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    if (!document.getElementById('att-stream')) { document.removeEventListener('keydown', onSpace); return; }
+    if (targetPresent) {
+      hits++;
+      misses--; // cancel the pending miss since user responded in time
+    } else {
+      falseAlarms++;
+    }
+    const st = document.getElementById('att-stats');
+    if (st) st.textContent = `Hits: ${hits} · Misses: ${misses} · False Alarms: ${falseAlarms}`;
   }
+
   document.addEventListener('keydown', onSpace);
 }
 
 // TASK SWITCH
 function setupSwitch(el) {
-  let trialIdx=0, lastType=null, switchCosts=[], trialStart=0, currentAnswer, iv2;
+  let trialIdx=0, lastType=null, switchCosts=[], trialStart=0, currentAnswer;
   const MAX=8;
 
   const shuffle = arr => [...arr].sort(()=>Math.random()-0.5);
@@ -1482,142 +1499,39 @@ function setupSwitch(el) {
   `;
 
   function nextTrial() {
-    if(trialIdx>=MAX){finish();return;}
-    const isMath = trialIdx%2===0;
-    const taskType = isMath?'math':'sort';
-    const isSwitch = lastType && lastType!==taskType;
-    lastType=taskType; trialStart=performance.now();
-    const data = isMath?mathQ():sortQ();
-    currentAnswer=String(data.a);
-    document.getElementById('sw-q').textContent=data.q;
-    const typeEl=document.getElementById('sw-type');
-    typeEl.textContent=isSwitch?'⇄ SWITCH TRIAL':'= REPEAT TRIAL';
-    typeEl.style.color=isSwitch?'var(--violet)':'var(--text3)';
-    document.getElementById('sw-opts').innerHTML=data.opts.map(o=>
+    if (trialIdx >= MAX) { finish(); return; }
+    const isMath = trialIdx % 2 === 0;
+    const taskType = isMath ? 'math' : 'sort';
+    const isSwitch = lastType && lastType !== taskType;
+    lastType = taskType; trialStart = performance.now();
+    const data = isMath ? mathQ() : sortQ();
+    currentAnswer = String(data.a);
+    document.getElementById('sw-q').textContent = data.q;
+    const typeEl = document.getElementById('sw-type');
+    typeEl.textContent = isSwitch ? '⇄ SWITCH TRIAL' : '= REPEAT TRIAL';
+    typeEl.style.color = isSwitch ? 'var(--violet)' : 'var(--text3)';
+    document.getElementById('sw-opts').innerHTML = data.opts.map(o =>
       `<div class="switch-opt" onclick="swAns(this,'${o}',${isSwitch})">${o}</div>`).join('');
     trialIdx++;
   }
 
   window.swAns = (el2, chosen, isSwitch) => {
-    const rt=performance.now()-trialStart;
-    const correct=String(chosen)===currentAnswer;
-    el2.className=`switch-opt ${correct?'correct-ans':'wrong-ans'}`;
-    if(isSwitch){switchCosts.push(rt); state.switchCosts.push(rt);}
-    setTimeout(nextTrial,600);
+    const rt = performance.now() - trialStart;
+    const correct = String(chosen) === currentAnswer;
+    el2.className = `switch-opt ${correct ? 'correct-ans' : 'wrong-ans'}`;
+    if (isSwitch) { switchCosts.push(rt); state.switchCosts.push(rt); }
+    setTimeout(nextTrial, 600);
   };
 
   function finish() {
-    logEvent('SWITCH',`${MAX} trials · Mean switch cost=${mean(switchCosts).toFixed(0)}ms`);
+    logEvent('SWITCH', `${MAX} trials · Mean switch cost=${mean(switchCosts).toFixed(0)}ms`);
     document.getElementById('task-btn-switch').classList.add('completed');
-    document.getElementById('sw-q').textContent=`Done! Mean switch cost: ${mean(switchCosts).toFixed(0)}ms`;
-    document.getElementById('sw-opts').innerHTML='';
+    document.getElementById('sw-q').textContent = `Done! Mean switch cost: ${mean(switchCosts).toFixed(0)}ms`;
+    document.getElementById('sw-opts').innerHTML = '';
     computeMetrics();
   }
 
   nextTrial();
 }
 
-// ── RESEARCH PANELS ────────────────────────────────────
-function toggleResearch(id) {
-  document.getElementById(`research-${id}`).classList.toggle('open');
-}
-
-function updateResearchPanels() {
-  const rt=state.reactionTimes, ti=state.typingIntervals;
-  document.getElementById('raw-data-out').textContent =
-`REACTION TIMES
-  n          = ${rt.length}
-  mean       = ${mean(rt).toFixed(2)} ms
-  std_dev    = ${std(rt).toFixed(2)} ms
-  cv         = ${(cv(rt)*100).toFixed(2)} %
-  min / max  = ${rt.length?Math.min(...rt).toFixed(0):'—'} / ${rt.length?Math.max(...rt).toFixed(0):'—'} ms
-
-TYPING CADENCE (IKI)
-  n          = ${ti.length}
-  mean       = ${mean(ti).toFixed(2)} ms
-  std_dev    = ${std(ti).toFixed(2)} ms
-  entropy    = ${entropy(ti).toFixed(4)} bits
-  cv         = ${(cv(ti)*100).toFixed(2)} %
-
-INFERRED LOAD MODEL
-  ICL        = ${(metrics.icl*100).toFixed(1)} / 100
-  ASI        = ${(metrics.asi*100).toFixed(1)} / 100
-  NES        = ${(metrics.nes*100).toFixed(1)} / 100
-  CDR        = ${metrics.cdr.toFixed(3)} ms/trial
-  FAM        = ${(metrics.fam*100).toFixed(1)} %
-
-YD CURVE PARAMS
-  a=1.000  b=4.000  c=0.500
-  P(ICL) = ${yd(metrics.icl).toFixed(4)}`;
-
-  document.getElementById('dist-data-out').textContent =
-`RT (last 10): ${rt.slice(-10).map(v=>v.toFixed(0)+'ms').join('  ')}
-
-IKI (last 20): ${ti.slice(-20).map(v=>v.toFixed(0)+'ms').join('  ')}
-
-Moving Avg (w=5): ${movingAvg(ti,5).slice(-5).map(v=>v.toFixed(1)).join('  ')}
-
-H(IKI) = ${entropy(ti).toFixed(4)} bits
-H(RT)  = ${entropy(rt).toFixed(4)} bits`;
-
-  const rows=['timestamp,task,value,unit',
-    ...rt.map((v,i)=>`${i},reaction,${v.toFixed(2)},ms`),
-    ...ti.map((v,i)=>`${i},typing_iki,${v.toFixed(2)},ms`),
-    ...state.memoryAccuracy.map((v,i)=>`${i},memory_accuracy,${(v*100).toFixed(1)},%`),
-    ...state.attentionHits.map((v,i)=>`${i},attention_dprime,${v.toFixed(4)},`),
-    ...state.switchCosts.map((v,i)=>`${i},switch_cost,${v.toFixed(2)},ms`)
-  ];
-  document.getElementById('csv-preview').textContent = rows.slice(0,20).join('\n')+(rows.length>20?`\n...${rows.length} rows`:'');
-}
-
-window.exportCSV = () => {
-  const rows=['timestamp,task,value,unit',
-    ...state.reactionTimes.map((v,i)=>`${i},reaction,${v.toFixed(2)},ms`),
-    ...state.typingIntervals.map((v,i)=>`${i},typing_iki,${v.toFixed(2)},ms`),
-    ...state.memoryAccuracy.map((v,i)=>`${i},memory_accuracy,${(v*100).toFixed(1)},%`),
-    ...state.attentionHits.map((v,i)=>`${i},attention_dprime,${v.toFixed(4)},`),
-    ...state.switchCosts.map((v,i)=>`${i},switch_cost,${v.toFixed(2)},ms`)
-  ];
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
-  a.download=`neurocurve_${Date.now()}.csv`; a.click();
-};
-
-// ── FADE OBSERVER ──────────────────────────────────────
-new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');}),{threshold:0.1})
-  .observe.apply(null, [null]); // dummy
-document.querySelectorAll('.fade-section').forEach(el=>{
-  new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');}),{threshold:0.1}).observe(el);
-});
-
-// ── INIT ───────────────────────────────────────────────
-initCharts();
-logEvent('SYSTEM','NeuroCurve session initialized');
-logEvent('MODEL','Yerkes-Dodson adaptive estimator ready');
-logEvent('ENGINE','Awaiting cognitive task input...');
-
-// Ambient animation before any tasks
-let tick=0;
-setInterval(()=>{
-  tick++;
-  if(state.reactionTimes.length===0 && state.typingIntervals.length===0) {
-    const t=tick/30;
-    metrics.asi=0.3+Math.sin(t*0.7)*0.1;
-    metrics.nes=0.25+Math.sin(t*0.5+1)*0.08;
-    metrics.fam=0.1+Math.abs(Math.sin(t*0.3))*0.08;
-    metrics.icl=0.2+Math.sin(t*0.4+2)*0.08;
-    metrics.frv=0.2+Math.sin(t*0.6)*0.05;
-    metrics.cdr=1.2+Math.sin(t*0.8)*0.5;
-    state.cogLoadHistory.push(metrics.icl);
-    if(state.cogLoadHistory.length>40) state.cogLoadHistory.shift();
-    updateMetricDisplay();
-    loadChart.data.labels=state.cogLoadHistory.map((_,i)=>i+1);
-    loadChart.data.datasets[0].data=state.cogLoadHistory;
-    loadChart.update('none');
-    ydChart.data.datasets[1].data=[{x:metrics.icl,y:yd(metrics.icl)}];
-    ydChart.update('none');
-  }
-}, 400);
-</script>
-</body>
-</html>
+// ── RESEARCH
