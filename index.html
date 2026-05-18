@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroCurve</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: #f2f1ed;
+  color: #1a1a1a;
+  font-size: 14px;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 36px;
+  background: #fafaf8;
+  border-bottom: 1px solid #e0dfd9;
+}
+
+.logo {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+.logo span { color: #aaa; font-weight: 300; }
+
+.hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #aaa;
+}
+
+.live-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: #3a9e6b;
+  border-radius: 50%;
+  margin-right: 5px;
+  animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── PAGE LAYOUT ── */
+.page {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: auto 1fr;
+  gap: 0;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 36px 48px;
+  gap: 0 28px;
+}
+
+/* ── TYPING SECTION (spans full width) ── */
+.typing-section {
+  grid-column: 1 / -1;
+  margin-bottom: 28px;
+}
+
+.sec-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #bbb;
+  margin-bottom: 12px;
+}
+
+.passage-display {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 15px;
+  line-height: 1.9;
+  color: #ccc;
+  margin-bottom: 12px;
+  min-height: 32px;
+  user-select: none;
+  letter-spacing: 0.2px;
+}
+.passage-display .done { color: #1a1a1a; }
+.passage-display .cur { color: #1a1a1a; border-bottom: 2px solid #1a1a1a; }
+.passage-display .err { color: #c0392b; border-bottom: 2px solid #c0392b; }
+
+#type-input {
+  width: 100%;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  padding: 11px 14px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  color: #1a1a1a;
+  outline: none;
+  caret-color: #1a1a1a;
+  transition: border-color .15s;
+}
+#type-input:focus { border-color: #1a1a1a; }
+#type-input:disabled { opacity: .45; background: #f5f4f0; }
+
+.typing-meta {
+  display: flex;
+  gap: 28px;
+  margin-top: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #bbb;
+}
+.typing-meta strong { color: #555; font-weight: 500; }
+
+/* ── MAIN COLUMN (left) ── */
+.main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* ── SIDEBAR (right) ── */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── CARD ── */
+.card {
+  background: #fafaf8;
+  border: 1px solid #e0dfd9;
+  border-radius: 6px;
+  padding: 22px;
+}
+
+.card-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #bbb;
+  margin-bottom: 16px;
+}
+.card-label span { color: #ccc; letter-spacing: 0; text-transform: none; font-size: 10px; }
+
+/* ── NEURAL SCORE CARD ── */
+.score-card {
+  background: #fafaf8;
+  border: 1px solid #e0dfd9;
+  border-radius: 6px;
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.score-card .card-label { margin-bottom: 10px; }
+
+.score-number {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 72px;
+  font-weight: 300;
+  letter-spacing: -4px;
+  color: #1a1a1a;
+  line-height: 1;
+  transition: all .5s ease;
+  min-width: 120px;
+}
+
+.score-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #ccc;
+  margin-top: 6px;
+}
+
+.score-bar-track {
+  width: 100%;
+  height: 2px;
+  background: #e8e7e3;
+  border-radius: 2px;
+  margin-top: 18px;
+  overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%;
+  background: #1a1a1a;
+  border-radius: 2px;
+  width: 0%;
+  transition: width .9s ease;
+}
+
+.zone-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #bbb;
+  margin-top: 10px;
+  transition: color .4s;
+}
+
+/* ── FORMULA CARD ── */
+.formula-card {
+  background: #fafaf8;
+  border: 1px solid #e0dfd9;
+  border-radius: 6px;
+  padding: 22px;
+}
+
+.formula-card .card-label { margin-bottom: 14px; }
+
+.formula-display {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 18px;
+  letter-spacing: 0.3px;
+}
+
+.formula-params {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.param-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.param-sym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #1a1a1a;
+  font-weight: 500;
+  min-width: 38px;
+  padding-top: 1px;
+}
+
+.param-desc {
+  color: #888;
+  font-size: 11px;
+}
+
+.param-live {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #c0392b;
+  margin-left: auto;
+  min-width: 44px;
+  text-align: right;
+  padding-top: 1px;
+  transition: color .3s;
+}
+
+.param-live.good { color: #3a9e6b; }
+.param-live.warn { color: #d4872a; }
+
+.formula-divider {
+  height: 1px;
+  background: #e8e7e3;
+  margin: 14px 0;
+}
+
+.insight {
+  font-size: 11px;
+  color: #aaa;
+  line-height: 1.7;
+  font-style: italic;
+}
+
+/* chart wrapper — fixed height so graphs always fully visible */
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 200px;
+}
+
+canvas { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">NeuroCurve <span>/ cognitive analytics</span></div>
+  <div class="hdr-right">
+    <span><span class="live-dot"></span>live</span>
+    <span id="clock">00:00</span>
+    <span id="ks-count">0 keystrokes</span>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- TYPING (full width) -->
+  <div class="typing-section">
+    <div class="sec-label">Typing cadence input</div>
+    <div class="passage-display" id="passage"></div>
+    <input id="type-input" type="text" placeholder="Start typing the passage above…" autocomplete="off" spellcheck="false">
+    <div class="typing-meta">
+      <span>WPM <strong id="m-wpm">—</strong></span>
+      <span>IKI mean <strong id="m-iki">—</strong></span>
+      <span>IKI σ <strong id="m-sig">—</strong></span>
+      <span>Entropy <strong id="m-ent">—</strong></span>
+    </div>
+  </div>
+
+  <!-- LEFT COLUMN -->
+  <div class="main-col">
+
+    <!-- Yerkes-Dodson Chart -->
+    <div class="card">
+      <div class="card-label">Performance Curve <span>— Yerkes-Dodson model</span></div>
+      <div class="chart-wrap"><canvas id="yd-chart"></canvas></div>
+    </div>
+
+    <!-- IKI Timeline -->
+    <div class="card">
+      <div class="card-label">Keystroke Interval Timeline <span>— IKI (ms)</span></div>
+      <div class="chart-wrap"><canvas id="iki-chart"></canvas></div>
+    </div>
+
+    <!-- Load Timeline -->
+    <div class="card">
+      <div class="card-label">Cognitive Load Timeline <span>— inferred from typing</span></div>
+      <div class="chart-wrap"><canvas id="load-chart"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- Neural Score -->
+    <div class="score-card">
+      <div class="card-label">Neural Score</div>
+      <div class="score-number" id="score-num">—</div>
+      <div class="score-sub">Composite NES</div>
+      <div class="score-bar-track"><div class="score-bar-fill" id="score-bar"></div></div>
+      <div class="zone-badge" id="zone-badge">awaiting input</div>
+    </div>
+
+    <!-- Formula explainer -->
+    <div class="formula-card">
+      <div class="card-label">How it works</div>
+
+      <div class="formula-display">P(s) = a · e<sup style="font-size:10px">−b(s−c)²</sup></div>
+
+      <div class="formula-params">
+
+        <div class="param-row">
+          <div class="param-sym">P(s)</div>
+          <div class="param-desc">Your predicted performance right now — shown as the <strong style="color:#1a1a1a">red dot</strong> on the curve.</div>
+        </div>
+
+        <div class="param-row">
+          <div class="param-sym">s</div>
+          <div class="param-desc">Inferred cognitive load — estimated from how erratic your keystrokes are.</div>
+          <div class="param-live" id="pl-s">—</div>
+        </div>
+
+        <div class="param-row">
+          <div class="param-sym">a</div>
+          <div class="param-desc">Peak performance ceiling. Fixed at <strong style="color:#1a1a1a">1.0</strong> (100%).</div>
+          <div class="param-live good">1.0</div>
+        </div>
+
+        <div class="param-row">
+          <div class="param-sym">b</div>
+          <div class="param-desc">Curve width — how quickly performance falls off under overload.</div>
+          <div class="param-live good">4.0</div>
+        </div>
+
+        <div class="param-row">
+          <div class="param-sym">c</div>
+          <div class="param-desc">Your sweet spot — the load level where you perform best.</div>
+          <div class="param-live good">0.45</div>
+        </div>
+
+      </div>
+
+      <div class="formula-divider"></div>
+
+      <div class="insight" id="insight">
+        Type the passage to start. The curve will shift based on your rhythm, speed, and consistency.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── CLOCK ─────────────────────────────────────────
+const T0 = Date.now();
+setInterval(() => {
+  const s = Math.floor((Date.now() - T0) / 1000);
+  document.getElementById('clock').textContent =
+    `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}, 1000);
+
+// ── MATH ──────────────────────────────────────────
+const mean  = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : 0;
+const std   = a => { if(a.length<2)return 0; const m=mean(a); return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1)); };
+const cv    = a => { const m=mean(a); return m?std(a)/m:0; };
+const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
+const yd    = (s,a=1,b=4,c=0.45) => a*Math.exp(-b*(s-c)**2);
+const movAvg= (a,w=7) => a.map((_,i)=>mean(a.slice(Math.max(0,i-w+1),i+1)));
+
+const entropy = a => {
+  if (a.length < 3) return 0;
+  const mx=Math.max(...a), mn=Math.min(...a), r=mx-mn;
+  if (!r) return 0;
+  const bins = new Array(10).fill(0);
+  a.forEach(v => { bins[Math.min(9,Math.floor((v-mn)/r*10))]++; });
+  return -bins.reduce((s,c)=>{ const p=c/a.length; return s+(p>0?p*Math.log2(p):0); },0);
+};
+
+// ── STATE ─────────────────────────────────────────
+const S = { ikis:[], loadHistory:[], keyCount:0, errors:0, passageStart:null };
+let icl=0, nes=0, lastKeyTime=null;
+
+// ── PASSAGES ──────────────────────────────────────
+const PASSAGES = [
+  "Cognitive load estimation relies on keystroke timing and entropy analysis.",
+  "Neuroplasticity enables the brain to reorganize synaptic connections over time.",
+  "Sustained attention degrades predictably under high cognitive load conditions.",
+  "Signal detection distinguishes true responses from false alarms using sensitivity.",
+  "Stochastic fluctuations in typing rhythm reveal underlying attentional variability.",
+  "Working memory capacity correlates strongly with prefrontal metabolic activity.",
+  "The hippocampus encodes episodic memory while the amygdala modulates arousal.",
+  "Temporal entropy in keystroke rhythm reflects mental effort and focus stability."
+];
+let pIdx = 0;
+
+function loadPassage(i) {
+  const inp = document.getElementById('type-input');
+  inp.value = '';
+  inp.disabled = false;
+  lastKeyTime = null;
+  S.passageStart = null;
+  S.errors = 0;
+  renderPassage('');
+  inp.focus();
+}
+
+function renderPassage(typed) {
+  const target = PASSAGES[pIdx % PASSAGES.length];
+  let html = '';
+  for (let i = 0; i < target.length; i++) {
+    const ch = target[i];
+    if (i < typed.length) {
+      html += `<span class="${typed[i]===ch?'done':'err'}">${ch}</span>`;
+    } else if (i === typed.length) {
+      html += `<span class="cur">${ch}</span>`;
+    } else {
+      html += ch;
+    }
+  }
+  document.getElementById('passage').innerHTML = html;
+}
+
+// ── INPUT ─────────────────────────────────────────
+document.getElementById('type-input').addEventListener('keydown', () => {
+  const now = performance.now();
+  if (lastKeyTime !== null) {
+    const iki = now - lastKeyTime;
+    if (iki > 20 && iki < 2500) {
+      S.ikis.push(iki);
+      // Append to IKI chart
+      ikiC.data.labels.push(S.ikis.length);
+      ikiC.data.datasets[0].data.push(iki);
+      ikiC.data.datasets[1].data = movAvg(S.ikis, 7);
+      ikiC.update('none');
+    }
+  }
+  lastKeyTime = now;
+  if (!S.passageStart) S.passageStart = now;
+  S.keyCount++;
+  document.getElementById('ks-count').textContent = `${S.keyCount} keystrokes`;
+  if (S.ikis.length >= 5) recompute();
+});
+
+document.getElementById('type-input').addEventListener('input', () => {
+  const target = PASSAGES[pIdx % PASSAGES.length];
+  const typed  = document.getElementById('type-input').value;
+  renderPassage(typed);
+
+  let e = 0;
+  for (let i = 0; i < Math.min(typed.length, target.length); i++) {
+    if (typed[i] !== target[i]) e++;
+  }
+  S.errors = e;
+
+  if (typed === target) {
+    document.getElementById('type-input').disabled = true;
+    setTimeout(() => { pIdx++; loadPassage(pIdx); }, 900);
+  }
+});
+
+// ── COMPUTE ───────────────────────────────────────
+function recompute() {
+  const ikis = S.ikis;
+  if (ikis.length < 5) return;
+
+  const cvv  = cv(ikis);
+  const ent  = entropy(ikis) / Math.log2(10);
+  const errR = S.keyCount > 0 ? clamp(S.errors / S.keyCount, 0, 1) : 0;
+
+  icl = clamp(cvv*0.45 + ent*0.35 + errR*0.20, 0, 1);
+  const asi = clamp(1 - cvv*1.3, 0, 1);
+  nes = clamp(yd(icl) * (0.6 + asi*0.4), 0, 1);
+
+  S.loadHistory.push(icl);
+  if (S.loadHistory.length > 80) S.loadHistory.shift();
+
+  updateDisplay();
+  updateYD();
+  updateLoadChart();
+  updateWPM();
+}
+
+function updateDisplay() {
+  const score = Math.round(nes * 100);
+  document.getElementById('score-num').textContent = score;
+  document.getElementById('score-bar').style.width = score + '%';
+
+  // Zone badge
+  const zEl = document.getElementById('zone-badge');
+  if (icl < 0.22)      { zEl.textContent='underload';   zEl.style.color='#3a9e6b'; }
+  else if (icl < 0.60) { zEl.textContent='optimal zone'; zEl.style.color='#aaa'; }
+  else if (icl < 0.82) { zEl.textContent='high load';   zEl.style.color='#d4872a'; }
+  else                 { zEl.textContent='overload';    zEl.style.color='#c0392b'; }
+
+  // IKI meta
+  const m = mean(S.ikis), s = std(S.ikis);
+  document.getElementById('m-iki').textContent = m.toFixed(0)+'ms';
+  document.getElementById('m-sig').textContent = s.toFixed(0)+'ms';
+  document.getElementById('m-ent').textContent = (entropy(S.ikis)/Math.log2(10)).toFixed(2);
+
+  // Formula live values
+  const sEl = document.getElementById('pl-s');
+  sEl.textContent = icl.toFixed(2);
+  sEl.className = 'param-live' + (icl<0.22?' good':icl<0.60?' good':icl<0.82?' warn':'');
+
+  // Insight text
+  const perf = yd(icl);
+  let insight = '';
+  if (S.ikis.length < 10) {
+    insight = 'Keep typing — more data improves the estimate.';
+  } else if (icl < 0.22) {
+    insight = `Your load (${(icl*100).toFixed(0)}%) is low. The model predicts performance would improve with a bit more stimulation.`;
+  } else if (icl < 0.60) {
+    insight = `Load at ${(icl*100).toFixed(0)}% — you're near the peak of the curve. Rhythm is consistent.`;
+  } else if (icl < 0.82) {
+    insight = `Load at ${(icl*100).toFixed(0)}% — keystroke variability is high. Performance is sliding down the right side of the curve.`;
+  } else {
+    insight = `Load at ${(icl*100).toFixed(0)}%. Significant rhythm disruption detected — the model shows performance in overload territory.`;
+  }
+  document.getElementById('insight').textContent = insight;
+}
+
+function updateWPM() {
+  if (!S.passageStart) return;
+  const typed = document.getElementById('type-input').value;
+  const mins  = (performance.now() - S.passageStart) / 60000;
+  if (mins > 0) {
+    const wpm = Math.round(typed.trim().split(/\s+/).filter(Boolean).length / mins);
+    document.getElementById('m-wpm').textContent = wpm;
+  }
+}
+
+// ── CHARTS ────────────────────────────────────────
+Chart.defaults.color = '#bbb';
+Chart.defaults.borderColor = 'rgba(0,0,0,0.05)';
+Chart.defaults.font.family = 'IBM Plex Mono';
+Chart.defaults.font.size = 10;
+
+const BASE = {
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#fff',
+      borderColor: '#ddd',
+      borderWidth: 1,
+      titleColor: '#1a1a1a',
+      bodyColor: '#777',
+      titleFont: { family:'IBM Plex Mono', size:10 },
+      bodyFont:  { family:'IBM Plex Mono', size:10 },
+      padding: 8
+    }
+  }
+};
+
+const TICK_STYLE = { color:'#ccc', font:{ size:9, family:'IBM Plex Mono' } };
+const GRID_STYLE = { color:'rgba(0,0,0,0.04)' };
+
+// ── Yerkes-Dodson ──────────────────────────────────
+const ydX = Array.from({length:120},(_,i)=>i/119);
+
+const ydC = new Chart(document.getElementById('yd-chart'), {
+  type: 'line',
+  data: {
+    datasets: [
+      {
+        data: ydX.map(x=>({x, y:yd(x)})),
+        borderColor: '#1a1a1a',
+        borderWidth: 1.5,
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+          g.addColorStop(0,'rgba(26,26,26,0.06)');
+          g.addColorStop(1,'rgba(26,26,26,0)');
+          return g;
+        },
+        fill: true, tension: 0.4, pointRadius: 0
+      },
+      {
+        data: [],
+        borderColor: '#c0392b', backgroundColor: '#c0392b',
+        pointRadius: 7, pointHoverRadius: 9, showLine: false
+      }
+    ]
+  },
+  options: {
+    ...BASE,
+    scales: {
+      x: {
+        type:'linear', min:0, max:1,
+        title:{ display:true, text:'cognitive load  →', color:'#ccc', font:{size:9,family:'IBM Plex Mono'} },
+        ticks:{ ...TICK_STYLE, maxTicksLimit:6 },
+        grid: GRID_STYLE
+      },
+      y: {
+        min:0, max:1,
+        title:{ display:true, text:'performance P(s)', color:'#ccc', font:{size:9,family:'IBM Plex Mono'} },
+        ticks:{ ...TICK_STYLE, maxTicksLimit:5 },
+        grid: GRID_STYLE
+      }
+    }
+  }
+});
+
+function updateYD() {
+  ydC.data.datasets[1].data = [{ x:icl, y:yd(icl) }];
+  ydC.update('none');
+}
+
+// ── IKI Timeline ───────────────────────────────────
+const ikiC = new Chart(document.getElementById('iki-chart'), {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      {
+        data: [],
+        borderColor: 'rgba(26,26,26,0.18)',
+        backgroundColor: 'transparent',
+        borderWidth: 1, pointRadius: 0, tension: 0.2
+      },
+      {
+        data: [],
+        borderColor: '#1a1a1a',
+        backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 0, tension: 0.5
+      }
+    ]
+  },
+  options: {
+    ...BASE,
+    scales: {
+      x: { display:false },
+      y: {
+        title:{ display:true, text:'ms between keystrokes', color:'#ccc', font:{size:9,family:'IBM Plex Mono'} },
+        ticks: TICK_STYLE,
+        grid: GRID_STYLE
+      }
+    }
+  }
+});
+
+// ── Load Timeline ──────────────────────────────────
+const loadC = new Chart(document.getElementById('load-chart'), {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      data: [],
+      borderColor: '#888',
+      backgroundColor: ctx => {
+        const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+        g.addColorStop(0,'rgba(0,0,0,0.07)');
+        g.addColorStop(1,'rgba(0,0,0,0)');
+        return g;
+      },
+      fill: true, borderWidth: 1.5, pointRadius: 0, tension: 0.4
+    }]
+  },
+  options: {
+    ...BASE,
+    scales: {
+      x: { display:false },
+      y: {
+        min:0, max:1,
+        title:{ display:true, text:'inferred load (0–1)', color:'#ccc', font:{size:9,family:'IBM Plex Mono'} },
+        ticks:{ ...TICK_STYLE, maxTicksLimit:4 },
+        grid: GRID_STYLE
+      }
+    }
+  }
+});
+
+function updateLoadChart() {
+  loadC.data.labels = S.loadHistory.map((_,i)=>i+1);
+  loadC.data.datasets[0].data = S.loadHistory;
+  loadC.update('none');
+}
+
+// ── INIT ──────────────────────────────────────────
+loadPassage(0);
+</script>
+</body>
+</html>
